@@ -1,0 +1,7 @@
+Hallo {{ name }},
+
+Du hast in der Übungsaufgabe {{ assignmentName }} von {{ maxPoints }} erreichbaren Punkten {{ reachedPoints }} erreicht. 
+Damit befindest du dich {{ percentile }} Perzentil bzw. bist besser als {{ percentile }} % aller Schüler!
+
+Mit freundlichen Grüßen,
+Lehrer
