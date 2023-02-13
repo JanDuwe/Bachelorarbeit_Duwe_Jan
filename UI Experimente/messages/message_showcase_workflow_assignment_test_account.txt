@@ -1,0 +1,7 @@
+Hallo Test Account,
+
+Du hast in der Übungsaufgabe showcase_workflow_assignment von 7 erreichbaren Punkten 0 erreicht. 
+Damit befindest du dich im 0. Perzentil bzw. bist besser als 0 % aller Schüler!
+
+Mit freundlichen Grüßen,
+Lehrer

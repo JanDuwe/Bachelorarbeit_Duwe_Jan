@@ -2,16 +2,16 @@ import sqlite3
 import csv
 import pandas as pd
 
-from testapi import *
+from api import *
 from generate_sampledata import *
 
 import sys
 sys.path.append('C:/Users/Jan/Documents/VS Code Projects/Bachelorarbeit_Duwe_Jan/Daten')
 
 
-#set up the three mandatory tables
-#only call if the tables do not exist yet
+
 def firstTimeSetup(connection):
+    """Erstellt die Datenbanktabellen nach dem ER-Modell."""
     try:
         with connection:
             connection.execute("""CREATE TABLE student (
@@ -39,21 +39,9 @@ def firstTimeSetup(connection):
     except:
         pass
 
-#TO-DO
-#make this a function, this gives back students and their corresponding reached points of any assignment
-#need to put this into a dataframe in order to display it on streamlit tho
-def getPointsByAssignment(assignment, connection):
-    with connection:
-        connection.execute("""SELECT gr.student_gitHubAccount, gr.assignment_id, assignment.Name, gr.reachedPoints, assignment.maxPoints
-                    FROM grading AS gr
-                    LEFT JOIN assignment ON gr.assignment_id=assignment.id
-                    """)
 
-
-#student name has to have format "firstname:lastname" for this function to work, middle names are not supported
 def getStudentsFromCsvToSQLite(path_to_csv, connection):
-
-    #drop all tables when updating the classroom with a new csv file
+    """Implementiert den Import von Schülern aus einer CSV Datei in der Ansicht Verwaltung. Hinterlegt dabei die Schüler in der DB."""
     df = pd.read_csv(path_to_csv)
     df.rename(columns={'name': 'firstName'}, inplace=True)
     df.rename(columns={'github_username': 'gitHubAccount'}, inplace=True)
@@ -66,7 +54,6 @@ def getStudentsFromCsvToSQLite(path_to_csv, connection):
                                 lastName TEXT,
                                 eMail TEXT
                                 )""")
-
 
     for row in df.index:
         df.loc[row, 'lastName'] = df.loc[row, 'firstName'].split()[1]
@@ -81,8 +68,6 @@ def getStudentsFromCsvToSQLite(path_to_csv, connection):
             connection.execute("INSERT INTO student VALUES(:gitHubAccount, :firstName, :lastName, :eMail)", 
             {'gitHubAccount': gitHubAccount, 'firstName': firstName, 'lastName':lastName, 'eMail': eMail})
 
-#getStudentsFromCsvToMariaDB('Bachelorarbeit_Duwe_Jan/Daten/classroom_roster.csv')
-
 def getAllStudentsAsDF(connection, cursor):
     """Führt ein SQL Statement aus das alle Eintrage der Tabelle 'student' zurückgibt im DataFrame Format."""
     with connection:
@@ -95,11 +80,6 @@ def getAllStudentsAsDF(connection, cursor):
         df.index += 1
     return df
 
-def AconnectToDB():
-    conn = sqlite3.connect('students.db')
-    c = conn.cursor()
-
-#connection.commit() fehlt hier? wieso wird das trotzdem geladen??
 def loadSampleDataIntoDB(connection, cursor, students, assignments, gradings):
     """Liest die generierten Sample Daten aus 'generate_sampledata.py' in die SQLite Datenbank ein."""
 
@@ -163,7 +143,6 @@ def getAllGradesPerStudent(connection, cursor, student):
     return result
 
 def getAllGradesFromAllStudentsPerAssignmentAsList(connection, cursor, assignment):
-    ###METHODE SO UMSCHREIBEN DASS DIE ALLE ASSIGNMENT RESULTS PRO ASSIGNMENT GIBT!! ALS DICTIONARY KEY IST ASSIGNMENT ID UND VALUE DIE ERGEBNISSE ODER SO?
     """Gibt alle Übungsergebnisse von allen Schülern als Python Listenobjekt aus."""
 
     with connection:
@@ -182,6 +161,7 @@ def getAllGradesFromAllStudentsPerAssignmentAsList(connection, cursor, assignmen
     return result
 
 def getAllGrades(connection, cursor, assignment):
+    """Gibt alle Ergebnisse einer Übung als DataFrame Objekt aus."""
     with connection:
         cursor.execute("""SELECT assignment.Name, gr.reachedPoints, assignment.maxPoints 
                         FROM grading as gr
@@ -196,8 +176,6 @@ def getAllGrades(connection, cursor, assignment):
 
 def getPercentileFromList(student_result, assignment, result_list):
     """Gibt das Perzentil des Ergebnis eines Schülers von einer Übung als formatierter String zurück."""
-    ### UMSCHREIBEN DASS ES DEN ÜBUNGSNAMEN UND NICHT DIE ÜBUNGSID AUSGIBT
-    ### VLLT AUCH AN DIE METHODE OBEN ANPASSEN DASS ICH ALLE ASSIGNMENTS FÜTTERN KANN UND DANN DIREKT ALLES AUSGEBE
     result_list.sort()
     percentile = 0
     better_than = 0
@@ -211,13 +189,8 @@ def getPercentileFromList(student_result, assignment, result_list):
     return percentile
     
 
-def getAssignmentIDFromDF(assignment, studentResults):
-    """Gibt die gesuchte ID einer Übungsaufgabe aus einem DataFrame als Python Integer zurück. Die Variable assignment bestimmt nach welcher Übungsaufgabe gesucht wird."""
-
-
-    return ""
-
 def getAllAssignmentsIDsAndNamesAsList(connection, cursor):
+    """Gibt alle IDs und Namen von Übungen in der Datenbank als Python List Objekt zurück."""
     with connection:
         cursor.execute("""SELECT id, name
                         FROM assignment""")
@@ -233,6 +206,10 @@ def getAllAssignmentsIDsAndNamesAsList(connection, cursor):
     return result   
 
 def getAllResultsPerAssignmentAsDF(connection, cursor, assignmentID):
+    """
+    Gibt alle Ergebnisse pro Übung als DataFrame Objekt zurück.
+    Folgende Attribute werden ebenfalls ausgegeben: ID, Name und maximale Punktzahl der Übung, Name des Schülers, erreichte Punkzahl.
+    """
     statement = """SELECT assignment.id, assignment.name, student.firstName, student.LastName, gr.reachedPoints, assignment.maxPoints 
                     FROM grading as gr
                     LEFT JOIN assignment ON gr.assignment_id=assignment.id
@@ -253,13 +230,9 @@ def getAllResultsPerAssignmentAsDF(connection, cursor, assignmentID):
 
     return result
 
-def countAllResults(assignmentResults):
-    temp = assignmentResults.pivot_table(columns=['erreichte Punkte'], aggfunc='size')
-
-    result = pd.DataFrame(temp, columns=['erreichte Punkte'])
-    return result
 
 def insertAssignmentIntoDB(connection, cursor, name, inviteLink, maxPoints):
+    """Funktion um Übungen, die im Formular der Hauptseite angelegt wurden in der DB zu hinterlegen."""
     with connection:
             cursor.execute("INSERT INTO assignment VALUES(:id, :name, :inviteLink, :maxPoints)", 
             {'id': None, 'name': name, 'inviteLink': inviteLink, 'maxPoints': maxPoints})
@@ -267,22 +240,12 @@ def insertAssignmentIntoDB(connection, cursor, name, inviteLink, maxPoints):
             connection.commit()
 
 def getAllAssignmentsNamesInviteLinksAsDF(connection, cursor):
+    """Funktion um alle Übungsnamen und Einladungs URLs als DataFrame Objekt zu speichern."""
     with connection:
         cursor.execute("""SELECT name, inviteLink FROM assignment""")
-        result = pd.DataFrame(cursor.fetchall(), columns=['name', 'inviteLink'])
+        result = pd.DataFrame(cursor.fetchall(), columns=['Name', 'Einladungslink'])
         result.index += 1
     
-    return result
-
-def getAssignmentNameFromID(connection, cursor, assignment_id):
-    statement = """SELECT name 
-                    FROM assignment 
-                    WHERE id=""" + assignment_id
-    
-    with connection:
-        cursor.execute(statement)
-        result = cursor.fetchall()
-
     return result
 
 
@@ -323,26 +286,19 @@ def getAllAssignmentResultsGroupedByAssignment(connection, cursor):
     return result_dict
 
 def getAllPercentilesByStudent(student_results, connection, cursor):
-    #all_results = getAllAssignmentResultsGroupedByAssignment(connection, cursor)
-    #return_value = ""
-    #for key in all_results:
-    #    return_value = return_value + getPercentileFromList(student_results[key], key, all_results[key]) + "\n"
     return_value = []
     with connection:
         for result in student_results['id']:
-            #print(result)
             statement = "SELECT reachedPoints FROM grading WHERE assignment_id = " + str(result)
             cursor.execute(statement)
             temp_all_results = cursor.fetchall()
-            #print("hello")
-            #convert list of tuples to list of int
             y = [i[0] for i in temp_all_results]
-            #print(y)
             return_value.append(getPercentileFromList(student_results.at[result, 'erreichtePunkte'], result, y))
 
     return return_value
 
 def getMaxPointsByAssignment(assignment_id, connection, cursor):
+    """Gibt die maximale Punktzahl einer Übung als Integer zurück"""
     statement = "SELECT maxPoints FROM assignment WHERE id = " + assignment_id
     with connection:
         cursor.execute(statement)
@@ -352,7 +308,7 @@ def getMaxPointsByAssignment(assignment_id, connection, cursor):
     return result
 
 def getAssignmentNameByID(assignment_id, connection, cursor):
-
+    """Gibt den Namen einer Übung basierend auf deren ID zurück."""
     statement = """SELECT name from assignment where id = """ + str(assignment_id)
 
     with connection:
@@ -366,7 +322,7 @@ def getAssignmentNameByID(assignment_id, connection, cursor):
     return result
 
 def getAllStudentsResultsByAssignmentID(assignment_id, connection, cursor):
-    
+    """Gibt den Namen einer Übung, den Namen eines Schülers und die erreichte Punktzahl als DataFrame Objekt zurück."""
     statement = """SELECT assignment.name, student.firstName, student.LastName, gr.reachedPoints
                     FROM grading as gr
                     LEFT JOIN assignment ON gr.assignment_id=assignment.id
@@ -379,12 +335,10 @@ def getAllStudentsResultsByAssignmentID(assignment_id, connection, cursor):
 
     result = pd.DataFrame(temp_result_list, columns=['Übungsname', 'Vorname', 'Nachname', 'erreichte Punkte'])
 
-    print(result)
-
     return result
 
-def calculateSinglePercentileForStudent(result_df):
-    
+def calculatePercentileForStudent(result_df):
+    """Berechnet das Perzentil für einen Schüler."""
     result_list = result_df['erreichte Punkte'].tolist()
     result_list.sort()
 
@@ -407,13 +361,3 @@ def calculateSinglePercentileForStudent(result_df):
         result_df.at[index, 'Perzentil'] = percentile
 
     return result_df
-
-def getAllReachedPointsByAssignmentID(assignment_id, connection, cursor):
-    
-    statement = "SELECT reachedPoints FROM grading WHERE assignment_id = " + str(assignment_id)
-
-    with connection:
-        cursor.execute(statement)
-        result = cursor.fetchall()
-
-    return result

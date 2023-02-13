@@ -4,11 +4,15 @@ import pandas as pd
 import altair as alt
 from streamlit_vega_lite import vega_lite_component, altair_component
 
-import sys
-sys.path.append('C:/Users/Jan/Documents/VS Code Projects/Bachelorarbeit_Duwe_Jan/Daten')
-from database_setup import *
+import sys, os
+from definitions import ROOT_DIR
+
+sys.path.append(os.path.join(ROOT_DIR, 'Daten'))
+
+from datahandler import *
 from generate_sampledata import *
 
+####### Generelles Setup der Seite
 
 conn = sqlite3.connect('students.db')
 c = conn.cursor()
@@ -18,6 +22,8 @@ st.set_page_config(layout="wide")
 firstTimeSetup(conn)
 
 getAllAssignmentsIDsAndNamesAsList(conn, c)
+
+####### Erstellen der Container Elemente
 
 topColumns = st.empty()
 
@@ -42,7 +48,7 @@ with std_container:
     std = df_display_all['erreichte Punkte'].std()
     st.write(std)
 
-
+####### Überblick der Schüler
 
 maxPoints = df_display_all.loc[0, 'Maximalpunkte']
 
@@ -55,15 +61,12 @@ rule = alt.Chart(df_display_all).mark_rule(opacity=0.8, color='red').encode(
     y='mean(erreichte Punkte)'
 )
 
-st.header("Alle Schüler auf einen Blick inkl. Mittelwert")
+st.header("Alle Schüler auf einen Blick")
 st.altair_chart(chart_display_all + rule, use_container_width=True)
 
-df_display_reached_points_name = df_display_all.drop(['id', 'Übung', 'Maximalpunkte'], axis=1)
+####### Histogramm der Ergebnisse, interaktiv
 
-chart_test = alt.Chart(df_display_reached_points_name).mark_bar(opacity=1).encode(
-    x=alt.X('erreichte Punkte', sort=alt.EncodingSortField(op='count', order='ascending'), bin=True),
-    y=alt.Y('count()', type='quantitative', axis=alt.Axis(tickMinStep=1))
-)
+df_display_reached_points_name = df_display_all.drop(['id', 'Übung', 'Maximalpunkte'], axis=1)
 
 brush = alt.selection(type='interval', encodings=['x'])
 
@@ -85,31 +88,14 @@ lower = interactive_test.properties(
 
 concat_distribution_interactive = alt.vconcat(upper, lower)
 
-event_dict = altair_component(altair_chart=concat_distribution_interactive, key="test")
-
-r = event_dict.get("x")
-if r:
-    filtered = df_display_all[(df_display_all['erreichte Punkte'] >= r[0]) & (df_display_all['erreichte Punkte'] < r[1])]
-    st.write(filtered)
-
-
 st.header("Verteilung der Übungsergebnisse")
 st.altair_chart(concat_distribution_interactive, use_container_width=True)
 
+####### Interaktives Diagramm der Wahrscheinlichkeitsfunktion
 
-#st.table(df_display_all)
+st.header("Wahrscheinlichkeitfunktion der Ergebnisse")
 
-result_count = countAllResults(df_display_all)
-
-result_count_chart = alt.Chart(result_count).mark_bar().encode(
-    x = 'Maximalpunkte',
-    y = 'Erreichte Punkte'
-)
-#.properties(width=200, height=600)
-
-#st.altair_chart(result_count_chart, use_container_width=False)
-
-st.header("Density Chart")
+probability_selection = alt.selection(type='interval', encodings=['x'])
 
 chart = alt.Chart(df_display_reached_points_name).transform_density(
     'erreichte Punkte',
@@ -120,6 +106,19 @@ chart = alt.Chart(df_display_reached_points_name).transform_density(
     y='density:Q',
 ).properties(
     width=900
+).add_selection(probability_selection)
+
+text = alt.Chart(df_display_reached_points_name).transform_density(
+    'erreichte Punkte',
+    as_=['erreichte Punkte', 'density'],
+).transform_filter(probability_selection).mark_text(
+    align='left',
+    baseline='top',
+    color='white'
+).encode(
+    x=alt.value(5),
+    y=alt.value(5),
+    text=alt.Text('sum(density):Q', format='.4f'),
 )
 
-st.altair_chart(chart, use_container_width=False)
+st.altair_chart(chart + text, use_container_width=False)

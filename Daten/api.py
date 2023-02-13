@@ -3,10 +3,13 @@ import requests
 import csv
 import re
 
-#braucht dringend error handling falls übung nicht existiert!°!!!!!!!!!!!
+"""Falls die Funktionalität überprüft werden soll, müssen hier in den beiden Funktionen bei den Headers das GitHub API Token für 'token' eingesetzt werden."""
+
 def getAssignmentResults(studentGitHubAccount, assignment_name):
+    """Implementiert die REST Anfrage an ein GitHub Repository um das Ergebnis eines Schülers zu exportieren."""
+
     url_github = "https://api.github.com/repos/JanDuweBachelorarbeit/" + assignment_name + "-" + studentGitHubAccount + "/contents/metadata_raw.csv"
-    headers = {'Accept': 'application/vnd.github+json','Authorization': 'Bearer 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'}
+    headers = {'Accept': 'application/vnd.github+json','Authorization': 'Bearer token'}
     r_github = requests.get(url=url_github, headers=headers)
 
     url_resulting = r_github.json()['download_url']
@@ -23,16 +26,9 @@ def getAssignmentResults(studentGitHubAccount, assignment_name):
     result_list = result_parsed.split(',')
 
     return result_list
-    #filename = studentGitHubAccount + "_" + assignmentID + ".csv"
-
-    #file = open(filename, 'w',)
-    #file.write('Assignment_ID,Student_ID,Points_awarded,Points_available,Submission_timestamp' + '\n' +
-    #           result_parsed)
-
-    #return r_github.json()
-
 
 def getStudentsEmail(gitHubUserNames):
+    """Implementiert die REST Anfrage an ein GitHub Nutzerkonto um die hinterlegte, öffentlich sichtbare E-Mail abzufragen."""
     url_github = "https://api.github.com/users/" + gitHubUserNames
     headers = {'Accept': 'application/vnd.github+json','Authorization': 'Bearer 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'}
     try:
@@ -47,5 +43,3 @@ def getStudentsEmail(gitHubUserNames):
     
     finally:
         return studentEmail
-
-#getAllGitHubStudentsEmails("test")
